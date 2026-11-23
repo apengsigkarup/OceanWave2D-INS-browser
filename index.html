@@ -1,0 +1,286 @@
+<meta charset="utf-8">
+<title>Bar Test Wave Flume</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one lab-notebook column — flume side view, run panel, gauge records, build notes. */
+:root {
+  --bg: #eef3f4; --panel: #ffffff; --fg: #142a33; --muted: #557079; --line: #d3dfe2;
+  --water: #2b7fa6; --water-fill: rgba(43,127,166,0.16); --bed: #c4ad82; --bed-edge: #9c8458;
+  --zone: rgba(20,42,51,0.06); --run: #d4572a; --ref: #8aa0a8; --exp: #142a33;
+  --ok: #2f8a57; --warn: #b7791f; --bad: #c0392b;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1a1f; --panel: #13242b; --fg: #dce9ec; --muted: #8aa5ad; --line: #24404a;
+  --water: #5cb4dc; --water-fill: rgba(92,180,220,0.14); --bed: #8a7652; --bed-edge: #b19a6c;
+  --zone: rgba(220,233,236,0.05); --run: #f07b4f; --ref: #6d8790; --exp: #dce9ec;
+  --ok: #57c287; --warn: #e0a84a; --bad: #ef6b5d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1a1f; --panel: #13242b; --fg: #dce9ec; --muted: #8aa5ad; --line: #24404a;
+  --water: #5cb4dc; --water-fill: rgba(92,180,220,0.14); --bed: #8a7652; --bed-edge: #b19a6c;
+  --zone: rgba(220,233,236,0.05); --run: #f07b4f; --ref: #6d8790; --exp: #dce9ec;
+  --ok: #57c287; --warn: #e0a84a; --bad: #ef6b5d; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5 }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px }
+header { display: flex; flex-direction: column; gap: 6px }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 20px; margin: 0; text-wrap: balance }
+.lede { max-width: 68ch; color: var(--muted); margin: 0 }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.flume-wrap { position: relative; width: 100%; aspect-ratio: 1000 / 300; max-width: 100% }
+canvas { display: block; width: 100%; height: 100% }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px }
+button { font-family: var(--f-body); font-weight: 600; font-size: 15px; border-radius: 4px; padding: 9px 18px; cursor: pointer;
+  border: 1px solid var(--water); background: var(--water); color: var(--panel) }
+button.secondary { background: transparent; color: var(--fg); border-color: var(--line) }
+button:disabled { opacity: .45; cursor: default }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--run); outline-offset: 2px }
+.chip { font-family: var(--f-mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; color: var(--muted) }
+.chip.running { color: var(--warn) } .chip.done { color: var(--ok) } .chip.error { color: var(--bad) }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 18px; margin: 0 }
+.stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.stats dt { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted) }
+.stats dd { margin: 0; font-family: var(--f-mono); font-size: 17px; font-variant-numeric: tabular-nums }
+.bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden }
+.bar > i { display: block; height: 100%; width: 0; background: var(--run); transition: width .2s linear }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted) }
+.legend span { display: inline-flex; align-items: center; gap: 7px }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid }
+.gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px }
+@media (max-width: 640px) { .gauges { grid-template-columns: minmax(0, 1fr) } }
+.gauge { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.gauge h3 { margin: 0; font-family: var(--f-mono); font-weight: 500; font-size: 13px }
+.gauge .cv { width: 100%; aspect-ratio: 520 / 150; max-width: 100% }
+.note { font-size: 13px; color: var(--muted); margin: 0; max-width: 72ch }
+details { min-width: 0 }
+summary { cursor: pointer; font-weight: 600 }
+pre { font-family: var(--f-mono); font-size: 12px; line-height: 1.45; background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 10px 12px; max-height: 260px; overflow: auto; margin: 10px 0 0; white-space: pre }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px }
+.notes div { min-width: 0 }
+.notes h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600 }
+.notes p { margin: 0; font-size: 14px; color: var(--muted) }
+code { font-family: var(--f-mono); font-size: .92em }
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">OceanWave3D-NS · 2D free-surface Navier–Stokes · Fortran → WebAssembly</span>
+    <h1>Submerged-bar wave flume, solved in your browser</h1>
+    <p class="lede">The Fortran 2D solver from <code>NSE_FINITE2D_MPI</code> compiled with LLVM Flang to WebAssembly and run on one thread in this tab. It is the bar test: T = 2.02 s, H = 2 cm waves in 0.4 m of water, run over a submerged bar on a 612 × 9 sigma grid for 41 wave periods (3310 steps).</p>
+  </header>
+
+  <section class="panel" aria-labelledby="flume-h">
+    <div class="controls">
+      <h2 id="flume-h">Flume</h2>
+      <span id="status" class="chip">ready</span>
+      <span style="flex:1"></span>
+      <button id="run" type="button">Run simulation</button>
+      <button id="stop" type="button" class="secondary" disabled>Stop</button>
+    </div>
+    <div class="flume-wrap"><canvas id="flume" aria-label="Side view of the flume: bathymetry, relaxation zones, gauges and the free surface"></canvas></div>
+    <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+    <dl class="stats">
+      <div><dt>Step</dt><dd id="s-step">0 / 3310</dd></div>
+      <div><dt>t / T</dt><dd id="s-tt">0.00</dd></div>
+      <div><dt>Model time</dt><dd id="s-time">0.00 s</dd></div>
+      <div><dt>Wall time</dt><dd id="s-wall">0.0 s</dd></div>
+      <div><dt>Speed</dt><dd id="s-rate">–</dd></div>
+      <div><dt>Time left</dt><dd id="s-eta">–</dd></div>
+    </dl>
+    <p class="note">Surface elevation drawn ×5. Shaded bands are the wave generation zone (left) and absorption zone (right). Numbered ticks are the eight wave gauges. A full run takes about 10–15 minutes on a laptop; gauge records start at t = 31 s.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="g-h">
+    <h2 id="g-h">Wave gauges, 31–41 s</h2>
+    <div class="legend">
+      <span><i style="border-color:var(--exp);border-top-style:dashed"></i>Experiment (Beji &amp; Battjes)</span>
+      <span><i style="border-color:var(--ref)"></i>Native gfortran run (reference)</span>
+      <span><i style="border-color:var(--run)"></i>This browser run</span>
+    </div>
+    <div class="gauges" id="gauges"></div>
+    <p class="note" id="g-note">Showing the experiment and a native reference run of the same code. The browser run's curves appear here when it finishes.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="b-h">
+    <h2 id="b-h">How it was built</h2>
+    <div class="notes">
+      <div><h3>Compiler</h3><p>LLVM Flang 22.1.6 with the emscripten-forge wasm32 patches, plus two fixes for 32/64-bit array-descriptor mismatches. Fortran runtime built with Emscripten.</p></div>
+      <div><h3>Libraries</h3><p>Reference LAPACK/BLAS (<code>dgesv</code>, <code>dgeqrf</code>, <code>dorgqr</code>) and SPARSKIT2 (ILUT + GMRES, CSR tools) compiled to WebAssembly from source.</p></div>
+      <div><h3>MPI</h3><p>Replaced by a single-rank stub: halo exchanges do nothing, reductions return their input. The solver source is unchanged apart from two hooks: no <code>mkdir</code> shell call, and a call that sends each frame to this page.</p></div>
+      <div><h3>Check</h3><p>In Node, the WebAssembly build prints the same mass diagnostics as a native gfortran build, to every printed digit. The binary is about 0.9 MB.</p></div>
+    </div>
+    <details><summary>Solver output</summary><pre id="log">(press Run simulation)</pre></details>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const EXAG = 5, LMOVE = 1.0, GEN = [0, 4.0], ABS = [25.0, 31.0];
+  let data = null, eta = null, nsteps = 3310, step = 0, simT = 0, worker = null, t0 = 0, browserGauges = null;
+  const logLines = [];
+
+  function fitCanvas(c) {
+    const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, W: r.width, H: r.height };
+  }
+
+  function drawFlume() {
+    const { ctx, W, H } = fitCanvas($('flume'));
+    ctx.clearRect(0, 0, W, H);
+    if (!data) return;
+    const padL = 44, padR = 10, padT = 18, padB = 26;
+    const X = (x) => padL + (x / 31) * (W - padL - padR);
+    const zTop = 0.10, zBot = -0.42;
+    const Y = (z) => padT + (zTop - z) / (zTop - zBot) * (H - padT - padB);
+    ctx.font = '11px ' + css('--f-mono');
+    // relaxation zones
+    ctx.fillStyle = css('--zone');
+    for (const [a, b] of [GEN, ABS]) ctx.fillRect(X(a), Y(zTop), X(b) - X(a), Y(zBot) - Y(zTop));
+    ctx.fillStyle = css('--muted');
+    ctx.fillText('generation', X(GEN[0]) + 4, padT + 10);
+    ctx.textAlign = 'right'; ctx.fillText('absorption', X(ABS[1]) - 4, padT + 10); ctx.textAlign = 'left';
+    // water
+    const xs = data.x, hs = data.h, e = eta || new Array(xs.length).fill(0);
+    ctx.beginPath(); ctx.moveTo(X(xs[0]), Y(EXAG * e[0]));
+    for (let i = 1; i < xs.length; i++) ctx.lineTo(X(xs[i]), Y(EXAG * e[i]));
+    for (let i = xs.length - 1; i >= 0; i--) ctx.lineTo(X(xs[i]), Y(-hs[i]));
+    ctx.closePath(); ctx.fillStyle = css('--water-fill'); ctx.fill();
+    // bed
+    ctx.beginPath(); ctx.moveTo(X(xs[0]), Y(zBot));
+    for (let i = 0; i < xs.length; i++) ctx.lineTo(X(xs[i]), Y(-hs[i]));
+    ctx.lineTo(X(xs[xs.length - 1]), Y(zBot)); ctx.closePath();
+    ctx.fillStyle = css('--bed'); ctx.fill();
+    ctx.beginPath(); for (let i = 0; i < xs.length; i++) (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(xs[i]), Y(-hs[i]));
+    ctx.strokeStyle = css('--bed-edge'); ctx.lineWidth = 1; ctx.stroke();
+    // free surface
+    ctx.beginPath(); for (let i = 0; i < xs.length; i++) (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(xs[i]), Y(EXAG * e[i]));
+    ctx.strokeStyle = css('--water'); ctx.lineWidth = 1.8; ctx.stroke();
+    // gauges
+    ctx.strokeStyle = css('--run'); ctx.fillStyle = css('--run'); ctx.lineWidth = 1.2; ctx.textAlign = 'center';
+    data.gauges.forEach((gx, k) => {
+      ctx.beginPath(); ctx.moveTo(X(gx), Y(0.075)); ctx.lineTo(X(gx), Y(0.045)); ctx.stroke();
+      ctx.fillText(String(k + 1), X(gx), Y(0.08) - 2);
+    });
+    // axes
+    ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--line');
+    for (let x = 0; x <= 30; x += 5) { ctx.fillText(x + ' m', X(x), H - 8); }
+    ctx.textAlign = 'right';
+    for (const z of [0, -0.2, -0.4]) { ctx.fillText(z.toFixed(1) + (z === 0 ? ' m' : ''), padL - 5, Y(z) + 4); ctx.beginPath(); ctx.moveTo(padL, Y(z)); ctx.lineTo(padL - 3, Y(z)); ctx.stroke(); }
+    ctx.textAlign = 'left';
+  }
+
+  function parseGauges(txt) {
+    const rows = txt.split('\n').filter((l) => l.trim() && !l.startsWith('#')).map((l) => l.trim().split(/\s+/).map(Number));
+    return Array.from({ length: 8 }, (_, g) => rows.filter((r) => r[0] >= 31 && r[0] <= 41).map((r) => [r[0], r[g + 1]]));
+  }
+
+  function buildGaugeCells() {
+    const box = $('gauges'); box.innerHTML = '';
+    data.gauges.forEach((gx, k) => {
+      const d = document.createElement('div'); d.className = 'gauge';
+      d.innerHTML = `<h3>Gauge ${k + 1} · x = ${(gx - LMOVE).toFixed(1)} m</h3><canvas class="cv" id="g${k}"></canvas>`;
+      box.appendChild(d);
+    });
+  }
+
+  function drawGauges() {
+    if (!data) return;
+    data.gauges.forEach((gx, k) => {
+      const { ctx, W, H } = fitCanvas($('g' + k));
+      ctx.clearRect(0, 0, W, H);
+      const pl = 38, pr = 6, pt = 6, pb = 18;
+      const X = (t) => pl + (t - 31) / 10 * (W - pl - pr);
+      const Y = (v) => pt + (0.03 - v) / 0.055 * (H - pt - pb);
+      ctx.font = '10px ' + css('--f-mono'); ctx.strokeStyle = css('--line'); ctx.fillStyle = css('--muted'); ctx.lineWidth = 1;
+      for (const v of [-0.02, 0, 0.02]) {
+        ctx.beginPath(); ctx.moveTo(pl, Y(v)); ctx.lineTo(W - pr, Y(v)); ctx.stroke();
+        ctx.textAlign = 'right'; ctx.fillText((v * 100).toFixed(0) + ' cm', pl - 4, Y(v) + 3);
+      }
+      ctx.textAlign = 'center';
+      for (let t = 32; t <= 40; t += 2) ctx.fillText(t + ' s', X(t), H - 4);
+      const line = (pts, color, w, dash) => {
+        ctx.beginPath(); ctx.setLineDash(dash || []);
+        pts.forEach(([t, v], i) => (i ? ctx.lineTo(X(t), Y(v)) : ctx.moveTo(X(t), Y(v))));
+        ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke(); ctx.setLineDash([]);
+      };
+      line(data.exp[k].pts, css('--exp'), 1.1, [4, 3]);
+      line(data.ref[k], css('--ref'), 1.4);
+      if (browserGauges) line(browserGauges[k], css('--run'), 1.6);
+    });
+  }
+
+  const fmtT = (s) => s >= 60 ? `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s` : `${s.toFixed(1)} s`;
+  function updateStats() {
+    $('s-step').textContent = `${step} / ${nsteps}`;
+    $('s-tt').textContent = (simT / 2.018013).toFixed(2);
+    $('s-time').textContent = simT.toFixed(2) + ' s';
+    $('prog').style.width = (100 * step / nsteps).toFixed(1) + '%';
+    if (t0 && step > 0) {
+      const wall = (performance.now() - t0) / 1000, rate = step / wall;
+      $('s-wall').textContent = fmtT(wall);
+      $('s-rate').textContent = rate.toFixed(1) + ' steps/s';
+      $('s-eta').textContent = step < nsteps ? fmtT((nsteps - step) / rate) : '0 s';
+    }
+  }
+  function setStatus(text, cls) { const s = $('status'); s.textContent = text; s.className = 'chip ' + (cls || ''); }
+  function log(line) {
+    logLines.push(line); if (logLines.length > 400) logLines.splice(0, logLines.length - 400);
+    $('log').textContent = logLines.join('\n');
+  }
+
+  let raf = 0;
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawFlume(); updateStats(); }); };
+
+  function start() {
+    if (worker) return;
+    logLines.length = 0; browserGauges = null; drawGauges(); step = 0; simT = 0; eta = null; t0 = 0;
+    $('g-note').textContent = 'Showing the experiment and a native reference run of the same code. The browser run’s curves appear here when it finishes.';
+    setStatus('loading WebAssembly', 'running'); $('run').disabled = true; $('stop').disabled = false;
+    try { worker = new Worker('worker.js'); } catch (err) { fail('Could not start a Web Worker: ' + err.message); return; }
+    worker.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.type === 'log') log(m.line);
+      else if (m.type === 'started') { t0 = performance.now(); setStatus('running', 'running'); }
+      else if (m.type === 'frame') { step = m.step; nsteps = m.nsteps; simT = m.time; eta = m.eta; schedule(); }
+      else if (m.type === 'done') {
+        step = nsteps; schedule(); worker.terminate(); worker = null;
+        $('run').disabled = false; $('stop').disabled = true;
+        if (m.gauges) { browserGauges = parseGauges(m.gauges); drawGauges();
+          $('g-note').textContent = `Browser run finished in ${fmtT(m.wall)}. Its gauge records are drawn in orange over the native reference.`; }
+        setStatus('finished', 'done');
+      } else if (m.type === 'error') fail(m.message);
+    };
+    worker.onerror = (e) => fail(e.message || 'The worker stopped with an error.');
+    worker.postMessage({ cmd: 'run' });
+  }
+  function stop() { if (worker) { worker.terminate(); worker = null; } setStatus('stopped', ''); $('run').disabled = false; $('stop').disabled = true; }
+  function fail(msg) { log('ERROR: ' + msg); if (worker) { worker.terminate(); worker = null; } setStatus('error: ' + msg, 'error'); $('run').disabled = false; $('stop').disabled = true; }
+
+  $('run').addEventListener('click', start);
+  $('stop').addEventListener('click', stop);
+  const redraw = () => { drawFlume(); drawGauges(); };
+  window.addEventListener('resize', redraw);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  fetch('bartest_data.json').then((r) => r.json()).then((d) => {
+    data = d; nsteps = d.nsteps; buildGaugeCells(); redraw(); updateStats();
+  }).catch((err) => fail('Could not load bartest_data.json (' + err.message + ')'));
+  if (document.fonts) document.fonts.ready.then(redraw);
+})();
+</script>
