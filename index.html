@@ -33,6 +33,7 @@ header { display: flex; flex-direction: column; gap: 6px }
 .eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
 h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance }
 h2 { font-family: var(--f-display); font-weight: 600; font-size: 20px; margin: 0; text-wrap: balance }
+.byline { margin: 0; font-size: 15px; font-weight: 500 }
 .lede { max-width: 68ch; color: var(--muted); margin: 0 }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0 }
 .flume-wrap { position: relative; width: 100%; aspect-ratio: 1000 / 300; max-width: 100% }
@@ -55,7 +56,7 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--run); out
 .legend span { display: inline-flex; align-items: center; gap: 7px }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid }
 .gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px }
-@media (max-width: 640px) { .gauges { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 640px) { .gauges, .notes { grid-template-columns: minmax(0, 1fr) } }
 .gauge { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
 .gauge h3 { margin: 0; font-family: var(--f-mono); font-weight: 500; font-size: 13px }
 .gauge .cv { width: 100%; aspect-ratio: 520 / 150; max-width: 100% }
@@ -64,7 +65,7 @@ details { min-width: 0 }
 summary { cursor: pointer; font-weight: 600 }
 pre { font-family: var(--f-mono); font-size: 12px; line-height: 1.45; background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
   padding: 10px 12px; max-height: 260px; overflow: auto; margin: 10px 0 0; white-space: pre }
-.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px }
+.notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px }
 .notes div { min-width: 0 }
 .notes h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600 }
 .notes p { margin: 0; font-size: 14px; color: var(--muted) }
@@ -76,7 +77,8 @@ code { font-family: var(--f-mono); font-size: .92em }
   <header>
     <span class="eyebrow">OceanWave3D-NS · 2D free-surface Navier–Stokes · Fortran → WebAssembly</span>
     <h1>Submerged-bar wave flume, solved in your browser</h1>
-    <p class="lede">The Fortran 2D solver from <code>NSE_FINITE2D_MPI</code> compiled with LLVM Flang to WebAssembly and run on one thread in this tab. It is the bar test: T = 2.02 s, H = 2 cm waves in 0.4 m of water, run over a submerged bar on a 612 × 9 sigma grid for 41 wave periods (3310 steps).</p>
+    <p class="byline">Allan P. Engsig-Karup · November 23, 2026</p>
+    <p class="lede">The Fortran 2D solver from <code>NSE_FINITE2D_MPI</code> compiled with LLVM Flang to WebAssembly and run on one thread in this tab. It is the bar test: T = 2.02 s, H = 2 cm waves in 0.4 m of water, run over a submerged bar on a 612 × 9 sigma grid up to t = 41 s, the end of the gauge window (1640 steps).</p>
   </header>
 
   <section class="panel" aria-labelledby="flume-h">
@@ -90,18 +92,22 @@ code { font-family: var(--f-mono); font-size: .92em }
     <div class="flume-wrap"><canvas id="flume" aria-label="Side view of the flume: bathymetry, relaxation zones, gauges and the free surface"></canvas></div>
     <div class="bar" aria-hidden="true"><i id="prog"></i></div>
     <dl class="stats">
-      <div><dt>Step</dt><dd id="s-step">0 / 3310</dd></div>
+      <div><dt>Step</dt><dd id="s-step">0 / 1640</dd></div>
       <div><dt>t / T</dt><dd id="s-tt">0.00</dd></div>
       <div><dt>Model time</dt><dd id="s-time">0.00 s</dd></div>
       <div><dt>Wall time</dt><dd id="s-wall">0.0 s</dd></div>
       <div><dt>Speed</dt><dd id="s-rate">–</dd></div>
       <div><dt>Time left</dt><dd id="s-eta">–</dd></div>
     </dl>
-    <p class="note">Surface elevation drawn ×5. Shaded bands are the wave generation zone (left) and absorption zone (right). Numbered ticks are the eight wave gauges. A full run takes about 10–15 minutes on a laptop; gauge records start at t = 31 s.</p>
+    <p class="note">Surface elevation drawn ×5. Shaded bands are the wave generation zone (left) and absorption zone (right). Numbered ticks are the eight wave gauges. A full run takes about 6 minutes on a laptop; gauge records cover t = 31–41 s.</p>
   </section>
 
   <section class="panel" aria-labelledby="g-h">
-    <h2 id="g-h">Wave gauges, 31–41 s</h2>
+    <div class="controls">
+      <h2 id="g-h">Wave gauges, 31–41 s</h2>
+      <span style="flex:1"></span>
+      <button id="csv" type="button" class="secondary" hidden>Download gauges (.csv)</button>
+    </div>
     <div class="legend">
       <span><i style="border-color:var(--exp);border-top-style:dashed"></i>Experiment (Beji &amp; Battjes)</span>
       <span><i style="border-color:var(--ref)"></i>Native gfortran run (reference)</span>
@@ -116,7 +122,7 @@ code { font-family: var(--f-mono); font-size: .92em }
     <div class="notes">
       <div><h3>Compiler</h3><p>LLVM Flang 22.1.6 with the emscripten-forge wasm32 patches, plus two fixes for 32/64-bit array-descriptor mismatches. Fortran runtime built with Emscripten.</p></div>
       <div><h3>Libraries</h3><p>Reference LAPACK/BLAS (<code>dgesv</code>, <code>dgeqrf</code>, <code>dorgqr</code>) and SPARSKIT2 (ILUT + GMRES, CSR tools) compiled to WebAssembly from source.</p></div>
-      <div><h3>MPI</h3><p>Replaced by a single-rank stub: halo exchanges do nothing, reductions return their input. The solver source is unchanged apart from two hooks: no <code>mkdir</code> shell call, and a call that sends each frame to this page.</p></div>
+      <div><h3>MPI</h3><p>Replaced by a single-rank stub: halo exchanges do nothing, reductions return their input. The solver source is unchanged apart from three small edits: no <code>mkdir</code> shell call, a call that sends each frame to this page, and the run stops at t = 41 s instead of 41 wave periods.</p></div>
       <div><h3>Check</h3><p>In Node, the WebAssembly build prints the same mass diagnostics as a native gfortran build, to every printed digit. The binary is about 0.9 MB.</p></div>
     </div>
     <details><summary>Solver output</summary><pre id="log">(press Run simulation)</pre></details>
@@ -128,7 +134,8 @@ code { font-family: var(--f-mono); font-size: .92em }
   const $ = (id) => document.getElementById(id);
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const EXAG = 5, LMOVE = 1.0, GEN = [0, 4.0], ABS = [25.0, 31.0];
-  let data = null, eta = null, nsteps = 3310, step = 0, simT = 0, worker = null, t0 = 0, browserGauges = null;
+  let gaugeRows = null;
+  let data = null, eta = null, nsteps = 1640, step = 0, simT = 0, worker = null, t0 = 0, browserGauges = null;
   const logLines = [];
 
   function fitCanvas(c) {
@@ -248,7 +255,7 @@ code { font-family: var(--f-mono); font-size: .92em }
 
   function start() {
     if (worker) return;
-    logLines.length = 0; browserGauges = null; drawGauges(); step = 0; simT = 0; eta = null; t0 = 0;
+    logLines.length = 0; browserGauges = null; gaugeRows = null; $('csv').hidden = true; drawGauges(); step = 0; simT = 0; eta = null; t0 = 0;
     $('g-note').textContent = 'Showing the experiment and a native reference run of the same code. The browser run’s curves appear here when it finishes.';
     setStatus('loading WebAssembly', 'running'); $('run').disabled = true; $('stop').disabled = false;
     try { worker = new Worker('worker.js'); } catch (err) { fail('Could not start a Web Worker: ' + err.message); return; }
@@ -260,7 +267,7 @@ code { font-family: var(--f-mono); font-size: .92em }
       else if (m.type === 'done') {
         step = nsteps; schedule(); worker.terminate(); worker = null;
         $('run').disabled = false; $('stop').disabled = true;
-        if (m.gauges) { browserGauges = parseGauges(m.gauges); drawGauges();
+        if (m.gauges) { browserGauges = parseGauges(m.gauges); gaugeRows = gaugeTable(m.gauges); $('csv').hidden = !gaugeRows.length; drawGauges();
           $('g-note').textContent = `Browser run finished in ${fmtT(m.wall)}. Its gauge records are drawn in orange over the native reference.`; }
         setStatus('finished', 'done');
       } else if (m.type === 'error') fail(m.message);
@@ -271,6 +278,31 @@ code { font-family: var(--f-mono); font-size: .92em }
   function stop() { if (worker) { worker.terminate(); worker = null; } setStatus('stopped', ''); $('run').disabled = false; $('stop').disabled = true; }
   function fail(msg) { log('ERROR: ' + msg); if (worker) { worker.terminate(); worker = null; } setStatus('error: ' + msg, 'error'); $('run').disabled = false; $('stop').disabled = true; }
 
+  // Simulated gauge records in the plotted window, as CSV (time + 8 gauges, metres)
+  function gaugeTable(txt) {
+    return txt.split('\n').filter((l) => l.trim() && !l.startsWith('#'))
+      .map((l) => l.trim().split(/\s+/).map(Number)).filter((r) => r[0] >= 31 && r[0] <= 41);
+  }
+  function csvText() {
+    const head = ['time_s'].concat(data.gauges.map((gx, k) => `gauge${k + 1}_x${(gx - LMOVE).toFixed(1)}m_eta_m`));
+    const lines = ['# OceanWave3D-NS 2D NSE bar test, browser (WebAssembly) run; surface elevation eta in metres',
+      head.join(',')].concat(gaugeRows.map((r) => r.map((v) => +v.toPrecision(9)).join(',')));
+    return lines.join('\n') + '\n';
+  }
+  async function saveCsv() {
+    if (!gaugeRows) return;
+    const filename = 'bartest_gauges_31-41s.csv', text = csvText();
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl) {
+      try { await dl.save({ filename, data: text }); }
+      catch (e) { if (e && e.code !== 'declined') $('g-note').textContent = 'The CSV could not be saved here (' + (e.code || 'error') + ').'; }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('csv').addEventListener('click', saveCsv);
   $('run').addEventListener('click', start);
   $('stop').addEventListener('click', stop);
   const redraw = () => { drawFlume(); drawGauges(); };
