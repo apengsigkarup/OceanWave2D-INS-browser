@@ -74,9 +74,12 @@ pre { font-family: var(--f-mono); font-size: 12px; line-height: 1.45; background
   padding: 10px 12px; max-height: 260px; overflow: auto; margin: 10px 0 0; white-space: pre }
 .notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px }
 .notes div { min-width: 0 }
+@media (max-width: 640px) { .notes { grid-template-columns: minmax(0, 1fr) } }
 .notes h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600 }
 .notes p { margin: 0; font-size: 14px; color: var(--muted) }
 code { font-family: var(--f-mono); font-size: .92em }
+.ref { margin: 0; max-width: 80ch }
+.bib { max-height: none; margin: 0 }
 @media (prefers-reduced-motion: reduce) { .bar > i { transition: none } }
 </style>
 
@@ -85,7 +88,7 @@ code { font-family: var(--f-mono); font-size: .92em }
     <span class="eyebrow">OceanWave3D-NS · 2D free-surface Navier–Stokes · Fortran → WebAssembly</span>
     <h1>Submerged-bar wave flume, solved in your browser</h1>
     <p class="byline">Allan P. Engsig-Karup · November 23, 2026</p>
-    <p class="lede">The Fortran 2D solver from <code>NSE_FINITE2D_MPI</code> compiled with LLVM Flang to WebAssembly and run on one thread in this tab. It is the bar test: T = 2.02 s, H = 2 cm waves in 0.4 m of water, run over a submerged bar on a 612 × 9 sigma grid up to t = 41 s, the end of the gauge window (1640 steps).</p>
+    <p class="lede">The Fortran OceanWave2D-INS solver with MPI was compiled with LLVM Flang to WebAssembly and run on one thread in this tab. It is the bar test: T = 2.02 s, H = 2 cm waves in 0.4 m of water, run over a submerged bar on a 612 × 9 sigma grid up to t = 41 s, the end of the gauge window (1640 steps).</p>
   </header>
 
   <section class="panel" aria-labelledby="flume-h">
@@ -129,10 +132,27 @@ code { font-family: var(--f-mono); font-size: .92em }
     <div class="notes">
       <div><h3>Compiler</h3><p>LLVM Flang 22.1.6 with the emscripten-forge wasm32 patches, plus two fixes for 32/64-bit array-descriptor mismatches. Fortran runtime built with Emscripten.</p></div>
       <div><h3>Libraries</h3><p>Reference LAPACK/BLAS (<code>dgesv</code>, <code>dgeqrf</code>, <code>dorgqr</code>) and SPARSKIT2 (ILUT + GMRES, CSR tools) compiled to WebAssembly from source.</p></div>
-      <div><h3>MPI</h3><p>Replaced by a single-rank stub: halo exchanges do nothing, reductions return their input. The solver source is unchanged apart from three small edits: no <code>mkdir</code> shell call, a call that sends each frame to this page, and the run stops at t = 41 s instead of 41 wave periods.</p></div>
+      <div><h3>MPI</h3><p>The Fortran solver is written for parallel runs with MPI domain decomposition; in this single-thread browser build its MPI calls go to a single-rank stub, so halo exchanges do nothing and reductions return their input. The solver source is unchanged apart from three small edits: no <code>mkdir</code> shell call, a call that sends each frame to this page, and the run stops at t = 41 s instead of 41 wave periods.</p></div>
       <div><h3>Check</h3><p>In Node, the WebAssembly build prints the same mass diagnostics as a native gfortran build, to every printed digit. The binary is about 0.9 MB.</p></div>
     </div>
     <details><summary>Solver output</summary><pre id="log">(press Run simulation)</pre></details>
+  </section>
+
+  <section class="panel" aria-labelledby="r-h">
+    <div class="controls">
+      <h2 id="r-h">Reference</h2>
+      <span style="flex:1"></span>
+      <button id="copybib" type="button" class="secondary">Copy BibTeX</button>
+    </div>
+    <p class="ref">A. P. Engsig-Karup and A. Melander, “A High-Order Finite Difference Incompressible Navier-Stokes model for Water Waves and Wave-Structure Interaction”, <em>39th International Workshop on Water Waves and Floating Bodies (IWWWFB)</em>, St Andrews, Scotland, 14–17 April 2024.</p>
+    <pre id="bib" class="bib">@inproceedings{EngsigKarupMelander2024IWWWFB,
+  author    = {Engsig-Karup, Allan P. and Melander, Anders},
+  title     = {A High-Order Finite Difference Incompressible {N}avier-{S}tokes model for Water Waves and Wave-Structure Interaction},
+  booktitle = {Proceedings of the 39th International Workshop on Water Waves and Floating Bodies (IWWWFB)},
+  address   = {St Andrews, Scotland},
+  month     = apr,
+  year      = {2024}
+}</pre>
   </section>
 </div>
 
@@ -310,6 +330,12 @@ code { font-family: var(--f-mono); font-size: .92em }
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   $('csv').addEventListener('click', saveCsv);
+  $('copybib').addEventListener('click', () => {
+    const btn = $('copybib'), text = $('bib').textContent;
+    const done = (msg) => { btn.textContent = msg; setTimeout(() => { btn.textContent = 'Copy BibTeX'; }, 1800); };
+    const selectIt = () => { const r = document.createRange(); r.selectNodeContents($('bib')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); done('Selected, press Ctrl/Cmd+C'); };
+    try { navigator.clipboard.writeText(text).then(() => done('Copied'), selectIt); } catch (_) { selectIt(); }
+  });
   $('run').addEventListener('click', start);
   $('stop').addEventListener('click', stop);
   const redraw = () => { drawFlume(); drawGauges(); };
